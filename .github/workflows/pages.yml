@@ -1,0 +1,55 @@
+# Compila a versão web (WebAssembly) e publica no GitHub Pages.
+# Endereço depois de publicar: https://<usuario>.github.io/wordcraft/?sample
+name: Publicar versão web no GitHub Pages
+
+on:
+  workflow_dispatch:        # botão "Run workflow" na aba Actions
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Instalar trunk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+
+      - name: Compilar versão web
+        working-directory: apps/wordcraft-web
+        run: trunk build --release
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
